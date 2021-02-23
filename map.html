@@ -1,0 +1,1034 @@
+ <!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta http-equiv="X-UA-Compatible" content="ie=edge">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, minimum-scale=1.0, user-scalable=no, target-densitydpi=medium-dpi" />
+    <title>KOROAD</title>
+ 
+    <script src="http://d3js.org/d3.v5.min.js"></script>
+    <script src="http://d3js.org/topojson.v1.min.js"></script>
+    <script src="http://labratrevenge.com/d3-tip/javascripts/d3.tip.v0.6.3.js"></script>
+    <script src="https://raw.githubusercontent.com/kimCheongBin/pract/master/mapvisProj/static/province.json"></script>
+    
+    <link rel="stylesheet" type="text/css" href="https://cdn.rawgit.com/moonspam/NanumSquare/master/nanumsquare.css">
+    <style>
+        .nanumsquare {
+        font-family: 'NanumSquare', sans-serif !important;
+        }
+        @font-face {
+            font-family:'RIDIBatang';
+            src: url('https://cdn.jsdelivr.net/gh/projectnoonnu/noonfonts_twelve@1.0/RIDIBatang.woff') format('woff');
+            font-weight: normal;
+            font-style: normal;
+        }
+        p {
+        font-family: 'NanumSquare';
+        }
+        .grid{
+            stroke: lightgray;
+            stroke-opacity: 0.1;
+            shape-rendering: crispEdges;
+        }
+        .button{
+            background: transparent;
+            color: black;
+            border: 0.2px solid rgba(231, 231, 231, 0.938);
+            font-size: 12px;
+            letter-spacing: 2px;
+            padding: 10px 80px;
+            text-transform: uppercase;
+            cursor: pointer;
+            display: inline-block;
+        }
+    </style>
+</head> 
+<body onload="initialize()" style="background: white;">
+    <p style="display: flex;  font-size: 24px; margin-bottom: 15px; color:black; font-weight: 800;">▐ (2015년-2019년) 시도별 음주운전사고 현황</p>
+        <div id="main" style="display:flex; flex-direction:row; justify-content:space-between;">     
+            <div id="map" style="border-style: outset; border-width: 0.7px; position: absolute;">
+                <div id = "button" style="display: flex; justify-content: space-around;"></div>
+                    <div id = "scale" style="position: absolute; margin-top: 85%; margin-left: 83%;">
+                    <svg style="height: 30px;">
+                        <rect id = "one" width="20" height="10" fill="#fffdea" />
+                        <rect id = "two" width="20" height="10" fill="#feecae" x ="20px"/>
+                        <rect id = "three" width="20" height="10" fill="#f4c664" x ="40px"/>
+                        <rect id = "four" width="20" height="10" fill="#ef9e45" x ="60px"/>
+                        <rect id = "five" width="20" height="10" fill="#dc772f" x ="80px"/>
+                        <rect id = "six" width="20" height="10" fill="#8e391a" x ="100px"/>
+                    </svg>
+                </div>
+                <div id="tooltip" style="position: absolute; margin-left: 20px;">
+                    <p style="display: flex; color: black; font-size: 12px;">▐ 지역명 : 
+                        <p id ="ragion_name" style="color: black; font-size: 20px; "></p>    
+                    <p style="display: flex; color: black; font-size: 12px;">▐ 음주운전사고율 순위 : 
+                        <p id ="rank" style="color: black; font-size: 20px; display: flex;"></p>
+                    </p>
+                    <div style=" display: flex; justify-content: space-between;">
+                        <p style="display: flex; color: black; font-size: 12px; background-color: white;">&nbsp;사망자수 <p id = "samag" style="display: flex; color: black; font-size: 12px; color: rgb(221, 65, 89);"></p>
+                    </p>
+                    </div>
+                    <div style=" display: flex; justify-content: space-between;">
+                        <p style="display: flex; color: black; font-size: 12px; background-color: white;">&nbsp;부상자수 <p id = "busang" style="display: flex; color: black; font-size: 12px; color: rgb(221, 65, 89);"></p>
+                    </p>
+                    </div>
+                </div>
+                <div style="position: absolute; margin-left: 10px; margin-top: 75%;">
+                    <p style = "color: #c51c1c; font-size: 8px;">음주운전사망률</p>
+                    <p style = " font-size: 8px;">= 지역별사망자수/지역별음주운전사고건수 * 100 </p>
+                    <p style = "color: #1170c4; font-size: 8px;">음주운전부상률</p> 
+                    <p style = " font-size: 8px;">= 지역별부상자수/지역별음주운전사고건수 * 100 </p>
+                </div>
+                
+            </div>
+            <div id = "bar_chart" style="padding: 10px; margin-left: 50%; background-color:white;">
+                <p style="font-size: 18px; font-weight: 800;">서울특별시</p>
+                <div  style = "display: flex; justify-content: space-around;">
+                    <p style = "font-size: 12px; color: #0587FC;">█ 해당지역 음주운전사고율</p>
+                    <p style = "font-size: 12px; color: #005DB0;">█ 전국 음주운전사고율 </p>
+                </div>
+                <svg class='chart'></svg>
+                <p style = "font-size: 12px;">음주운전사고율 = (지역별음주운전사고건수/지역별인구수) * 1000 </p>
+                <p style = "font-size: 12px;">자료출처: 도로교통공단 </p>
+            </div>
+        </div>
+
+    <script>  
+        var KOREA_JSON_DATA_URL ="https://raw.githubusercontent.com/kimCheongBin/pract/master/mapvisProj/static/province.json";
+        var WIDTH, HEIGHT,
+            MAP_CONTAINER_ID = "#map";
+            KOREA_PROVINCE_OBJECT = 'skorea_provinces_2018_geo';
+        var projection,path,svg,geoJson,features, bounds, center,map, places;
+        var json_url = KOREA_JSON_DATA_URL;
+
+        HEIGHT = 700//window.innerHeight; 
+        WIDTH = 800//window.innerWidth; // 윈도우 크기게 맞추기
+        console.log( 'Map scale', {'height': HEIGHT, 'width': WIDTH});
+
+        projection = d3.geoMercator().translate( [WIDTH/2, HEIGHT/2] );
+        path = d3.geoPath().projection( projection);
+
+        svg = d3.select( MAP_CONTAINER_ID).append( "svg")
+            .attr( "width", WIDTH)
+            .attr( "height", HEIGHT);
+        map = svg.append( "g").attr( "id", "map"),
+        places = svg.append( "g").attr( "id", "places");
+
+        d3.json( json_url ).then( function( _data){
+            geoJson = topojson.feature( _data, _data.objects[ KOREA_PROVINCE_OBJECT]);
+            features = geoJson.features;
+
+            bounds = d3.geoBounds( geoJson);
+            center = d3.geoCentroid( geoJson);
+
+            var distance = d3.geoDistance( bounds[0], bounds[1]);
+            var scale = HEIGHT / distance / Math.sqrt(2) * 1.2;
+            
+            projection.scale( scale).center( center);
+
+            console.log( "center", center);
+            console.log( "scale", scale);
+            
+            //지도       
+            var MAP = map.selectAll( "path")
+                .data( features)
+                .enter().append( "path")
+                .attr( "class", function(d) { console.log(d);
+                    return "municipality c " + d.properties.code;})
+                .attr( "d", path)
+                .on("mouseover", function(d) {
+                    var ragion_name = d.properties.name;
+                    var rank = d.properties.rank + "위 / 17 개 시도";
+                    var samang = d.properties.samang;
+                    var busang = d.properties.busang;
+                    tooltip = d3.select("#tooltip")
+                                .select("#ragion_name")
+                                .text(ragion_name);
+                                d3.select("#rank")
+                                .text(rank);
+                            d3.select("#samag")
+                                .text(samang);
+                            d3.select("#busang")
+                                .text(busang);
+                    d3.select("#tooltip").classed("hidden", false);
+                })
+                .on("mouseout",  function() { 
+                    d3.select("#tooltip").classed("hidden", true);
+                })
+                .style("fill", function(d){ 
+                        var one = "#feecae";
+                        var two = "#f4c664";
+                        var three = "#ef9e45";
+                        var four = "#dc772f";
+                        var five = "#8e391a";
+                        
+                        if(d.properties.name=="서울특별시"){return one;}
+                        else if(d.properties.name=="부산광역시"){return one;}
+                        else if(d.properties.name=="대구광역시"){return three;}
+                        else if(d.properties.name=="인천광역시"){return two;}
+                        else if(d.properties.name=="광주광역시"){return four;}
+                        else if(d.properties.name=="대전광역시"){return three;}
+                        else if(d.properties.name=="울산광역시"){return four;}
+                        else if(d.properties.name=="세종특별자치시"){return two;}
+                        else if(d.properties.name=="경기도"){return three;}
+                        else if(d.properties.name=="강원도"){return four;}
+                        else if(d.properties.name=="충청북도"){return five;}
+                        else if(d.properties.name=="충청남도"){return five;}                        
+                        else if(d.properties.name=="전라북도"){return three;}
+                        else if(d.properties.name=="전라남도"){return four;}
+                        else if(d.properties.name=="경상북도"){return four;}
+                        else if(d.properties.name=="경상남도"){return two;}
+                        else if(d.properties.name=="제주특별자치도"){return five;}
+                        else return;
+                })
+                .on("click", function(d){
+                    if(d.properties.name=="서울특별시"){ change("서울");
+                        d3.select("#bar_chart").select("p").text(d.properties.name);}
+                    else if(d.properties.name=="부산광역시"){ change("부산");
+                        d3.select("#bar_chart").select("p").text(d.properties.name);}
+                    else if(d.properties.name=="대구광역시"){ change("대구");
+                        d3.select("#bar_chart").select("p").text(d.properties.name);}
+                    else if(d.properties.name=="인천광역시"){change("인천");
+                        d3.select("#bar_chart").select("p").text(d.properties.name);}
+                    else if(d.properties.name=="광주광역시"){change("광주");
+                        d3.select("#bar_chart").select("p").text(d.properties.name);}
+                    else if(d.properties.name=="대전광역시"){change("대전");
+                        d3.select("#bar_chart").select("p").text(d.properties.name);}
+                    else if(d.properties.name=="울산광역시"){change("울산");
+                        d3.select("#bar_chart").select("p").text(d.properties.name);}
+                    else if(d.properties.name=="세종특별자치시"){change("세종");
+                        d3.select("#bar_chart").select("p").text(d.properties.name);}
+                    else if(d.properties.name=="경기도"){change("경기");
+                        d3.select("#bar_chart").select("p").text(d.properties.name);}
+                    else if(d.properties.name=="강원도"){change("강원");
+                        d3.select("#bar_chart").select("p").text(d.properties.name);}
+                    else if(d.properties.name=="충청북도"){change("충북");
+                        d3.select("#bar_chart").select("p").text(d.properties.name);}
+                    else if(d.properties.name=="충청남도"){change("충남");
+                        d3.select("#bar_chart").select("p").text(d.properties.name);}                        
+                    else if(d.properties.name=="전라북도"){change("전북");
+                        d3.select("#bar_chart").select("p").text(d.properties.name);}
+                    else if(d.properties.name=="전라남도"){change("전남");
+                        d3.select("#bar_chart").select("p").text(d.properties.name);}
+                    else if(d.properties.name=="경상북도"){change("경북");
+                        d3.select("#bar_chart").select("p").text(d.properties.name);}
+                    else if(d.properties.name=="경상남도"){change("경남");
+                        d3.select("#bar_chart").select("p").text(d.properties.name);}
+                    else if(d.properties.name=="제주특별자치도"){change("제주");
+                        d3.select("#bar_chart").select("p").text(d.properties.name);}
+                    else return;
+                })
+                //MAP
+
+            var button = d3.select("div").select("#button").append("button").attr("class","button").text("음주운전 사고율").on("click", function(){
+                MAP.style("fill", function(d){ 
+                        var one = "#feecae";
+                        var two = "#f4c664";
+                        var three = "#ef9e45";
+                        var four = "#dc772f";
+                        var five = "#8e391a";
+                        if(d.properties.name=="서울특별시"){return one;}
+                        else if(d.properties.name=="부산광역시"){return one;}
+                        else if(d.properties.name=="대구광역시"){return three;}
+                        else if(d.properties.name=="인천광역시"){return two;}
+                        else if(d.properties.name=="광주광역시"){return four;}
+                        else if(d.properties.name=="대전광역시"){return three;}
+                        else if(d.properties.name=="울산광역시"){return four;}
+                        else if(d.properties.name=="세종특별자치시"){return two;}
+                        else if(d.properties.name=="경기도"){return three;}
+                        else if(d.properties.name=="강원도"){return four;}
+                        else if(d.properties.name=="충청북도"){return five;}
+                        else if(d.properties.name=="충청남도"){return five;}                        
+                        else if(d.properties.name=="전라북도"){return three;}
+                        else if(d.properties.name=="전라남도"){return four;}
+                        else if(d.properties.name=="경상북도"){return four;}
+                        else if(d.properties.name=="경상남도"){return two;}
+                        else if(d.properties.name=="제주특별자치도"){return five;}
+                        else return;
+                });
+                var SVG = d3.select("#scale").select("#one").style("fill","white");
+                    d3.select("#scale").select("#two").style("fill", "#feecae");
+                    d3.select("#scale").select("#three").style("fill", "#f4c664");
+                    d3.select("#scale").select("#four").style("fill", "#ef9e45");
+                    d3.select("#scale").select("#five").style("fill", "#dc772f");
+                    d3.select("#scale").select("#six").style("fill",  "#8e391a");
+            })
+            var button = d3.select("div").select("#button").append("button").attr("class","button").text("음주운전 사망률").on("click", function(){
+                MAP.style("fill", function(d){ 
+                        var one = "#ee9875";
+                        var two = "#e47651";
+                        var three = "#d84d38";
+                        var four = "#91261e";
+                        var five = "#581013";
+                        if(d.properties.name=="서울특별시"){return one;}
+                        else if(d.properties.name=="부산광역시"){return two;}
+                        else if(d.properties.name=="대구광역시"){return two;}
+                        else if(d.properties.name=="인천광역시"){return one;}
+                        else if(d.properties.name=="광주광역시"){return one;}
+                        else if(d.properties.name=="대전광역시"){return two;}
+                        else if(d.properties.name=="울산광역시"){return two;}
+                        else if(d.properties.name=="세종특별자치시"){return three;}
+                        else if(d.properties.name=="경기도"){return two;}
+                        else if(d.properties.name=="강원도"){return three;}
+                        else if(d.properties.name=="충청북도"){return two;}
+                        else if(d.properties.name=="충청남도"){return five;}                        
+                        else if(d.properties.name=="전라북도"){return five;}
+                        else if(d.properties.name=="전라남도"){return four;}
+                        else if(d.properties.name=="경상북도"){return four;}
+                        else if(d.properties.name=="경상남도"){return four;}
+                        else if(d.properties.name=="제주특별자치도"){return one;}
+                        else return;
+                });
+                var SVG = d3.select("#scale").select("#one").style("fill","white");
+                    d3.select("#scale").select("#two").style("fill", "#ee9875");
+                    d3.select("#scale").select("#three").style("fill", "#e47651");
+                    d3.select("#scale").select("#four").style("fill", "#d84d38");
+                    d3.select("#scale").select("#five").style("fill", "#91261e");
+                    d3.select("#scale").select("#six").style("fill",  "#581013");
+
+            })
+            var button = d3.select("div").select("#button").append("button").attr("class","button").text("음주운전 부상률").on("click", function(){
+                MAP.style("fill", function(d){ 
+                    var five = "#27398d";
+                    var four = "#478ebc";
+                    var three = "#65b4c1";
+                    var two = "#8fccbd";
+                    var one = "#cee8b9";
+                    var zero = "#ffffdd";
+                    
+                        if(d.properties.name=="서울특별시"){return two;}
+                        else if(d.properties.name=="부산광역시"){return four;}
+                        else if(d.properties.name=="대구광역시"){return three;}
+                        else if(d.properties.name=="인천광역시"){return three;}
+                        else if(d.properties.name=="광주광역시"){return zero;}
+                        else if(d.properties.name=="대전광역시"){return one;}
+                        else if(d.properties.name=="울산광역시"){return three;}
+                        else if(d.properties.name=="세종특별자치시"){return four;}
+                        else if(d.properties.name=="경기도"){return two;}
+                        else if(d.properties.name=="강원도"){return three;}
+                        else if(d.properties.name=="충청북도"){return three;}
+                        else if(d.properties.name=="충청남도"){return four;}                        
+                        else if(d.properties.name=="전라북도"){return two;}
+                        else if(d.properties.name=="전라남도"){return two;}
+                        else if(d.properties.name=="경상북도"){return four;}
+                        else if(d.properties.name=="경상남도"){return five;}
+                        else if(d.properties.name=="제주특별자치도"){return two;}
+                        else return;
+                });
+                var SVG = d3.select("#scale").select("#one").style("fill", "#ffffdd");
+                d3.select("#scale").select("#two").style("fill",  "#cee8b9");
+                d3.select("#scale").select("#three").style("fill", "#8fccbd");
+                d3.select("#scale").select("#four").style("fill", "#65b4c1");
+                d3.select("#scale").select("#five").style("fill", "#478ebc");
+                d3.select("#scale").select("#six").style("fill", "#27398d");
+                d3.select("#range").text("음주운전 부상률 = 지역별 부상자수 / 지역별 음주운전 사고건수")
+            })
+        });//d3.json
+
+        
+            // bothData: Bar Chart에 사용될 그래프 데이터
+            var bothData = [
+                {
+                "local_name": "제주",
+                "years": "2015", 
+                "accident_rate": "0.73"
+                },
+                {
+                "local_name": "충남",
+                "years": "2015",
+                "accident_rate": "0.68"
+                },
+                {
+                "local_name": "울산",
+                "years": "2015",
+                "accident_rate": "0.67"
+                },
+                {
+                "local_name": "충북",
+                "years": "2015",
+                "accident_rate": "0.67"
+                },
+                {
+                "local_name": "강원",
+                "years": "2015",
+                "accident_rate": "0.61"
+                },
+                {
+                "local_name": "전남",
+                "years": "2015",
+                "accident_rate": "0.61"
+                },
+                {
+                "local_name": "광주",
+                "years": "2015",
+                "accident_rate": "0.59"
+                },
+                {
+                "local_name": "경북",
+                "years": "2015",
+                "accident_rate": "0.58"
+                },
+                {
+                "local_name": "전북",
+                "years": "2015",
+                "accident_rate": "0.49"
+                },
+                {
+                "local_name": "대전",
+                "years": "2015",
+                "accident_rate": "0.48"
+                },
+                {
+                "local_name": "경기",
+                "years": "2015",
+                "accident_rate": "0.47"
+                },
+                {
+                "local_name": "세종",
+                "years": "2015",
+                "accident_rate": "0.46"
+                },
+                {
+                "local_name": "대구",
+                "years": "2015",
+                "accident_rate": "0.45"
+                },
+                {
+                "local_name": "경남",
+                "years": "2015",
+                "accident_rate": "0.41"
+                },
+                {
+                "local_name": "인천",
+                "years": "2015",
+                "accident_rate": "0.4"
+                },
+                {
+                "local_name": "서울",
+                "years": "2015",
+                "accident_rate": "0.34"
+                },
+                {
+                "local_name": "부산",
+                "years": "2015",
+                "accident_rate": "0.29"
+                },
+                {
+                "local_name": "전체",
+                "years": "2015",
+                "accident_rate": "0.46"
+                },
+                //2015
+                
+                {"local_name": "제주",
+                "years": "2016", 
+                "accident_rate": "0.55"
+                },
+                {
+                "local_name": "충남",
+                "years": "2016",
+                "accident_rate": "0.56"
+                },
+                {
+                "local_name": "울산",
+                "years": "2016",
+                "accident_rate": "0.5"
+                },
+                {
+                "local_name": "충북",
+                "years": "2016",
+                "accident_rate": "0.52"
+                },
+                {
+                "local_name": "강원",
+                "years": "2016",
+                "accident_rate": "0.45"
+                },
+                {
+                "local_name": "전남",
+                "years": "2016",
+                "accident_rate": "0.47"
+                },
+                {
+                "local_name": "광주",
+                "years": "2016",
+                "accident_rate": "0.51"
+                },
+                {
+                "local_name": "경북",
+                "years": "2016",
+                "accident_rate": "0.46"
+                },
+                {
+                "local_name": "전북",
+                "years": "2016",
+                "accident_rate": "0.4"
+                },
+                {
+                "local_name": "대전",
+                "years": "2016",
+                "accident_rate": "0.43"
+                },
+                {
+                "local_name": "경기",
+                "years": "2016",
+                "accident_rate": "0.38"
+                },
+                {
+                "local_name": "세종",
+                "years": "2016",
+                "accident_rate": "0.38"
+                },
+                {
+                "local_name": "대구",
+                "years": "2016",
+                "accident_rate": "0.37"
+                },
+                {
+                "local_name": "경남",
+                "years": "2016",
+                "accident_rate": "0.28"
+                },
+                {
+                "local_name": "인천",
+                "years": "2016",
+                "accident_rate": "0.35"
+                },
+                {
+                "local_name": "서울",
+                "years": "2016",
+                "accident_rate": "0.28"
+                },
+                {
+                "local_name": "부산",
+                "years": "2016",
+                "accident_rate": "0.22"
+                },
+                {
+                "local_name": "전체",
+                "years": "2016",
+                "accident_rate": "0.37"
+                },//2016
+
+                {"local_name": "제주",
+                "years": "2017", 
+                "accident_rate": "0.47"
+                },
+                {
+                "local_name": "충남",
+                "years": "2017",
+                "accident_rate": "0.63"
+                },
+                {
+                "local_name": "울산",
+                "years": "2017",
+                "accident_rate": "0.44"
+                },
+                {
+                "local_name": "충북",
+                "years": "2017",
+                "accident_rate": "0.55"
+                },
+                {
+                "local_name": "강원",
+                "years": "2017",
+                "accident_rate": "0.5"
+                },
+                {
+                "local_name": "전남",
+                "years": "2017",
+                "accident_rate": "0.47"
+                },
+                {
+                "local_name": "광주",
+                "years": "2017",
+                "accident_rate": "0.46"
+                },
+                {
+                "local_name": "경북",
+                "years": "2017",
+                "accident_rate": "0.44"
+                },
+                {
+                "local_name": "전북",
+                "years": "2017",
+                "accident_rate": "0.41"
+                },
+                {
+                "local_name": "대전",
+                "years": "2017",
+                "accident_rate": "0.37"
+                },
+                {
+                "local_name": "경기",
+                "years": "2017",
+                "accident_rate": "0.38"
+                },
+                {
+                "local_name": "세종",
+                "years": "2017",
+                "accident_rate": "0.31"
+                },
+                {
+                "local_name": "대구",
+                "years": "2017",
+                "accident_rate": "0.36"
+                },
+                {
+                "local_name": "경남",
+                "years": "2017",
+                "accident_rate": "0.27"
+                },
+                {
+                "local_name": "인천",
+                "years": "2017",
+                "accident_rate": "0.33"
+                },
+                {
+                "local_name": "서울",
+                "years": "2017",
+                "accident_rate": "0.28"
+                },
+                {
+                "local_name": "부산",
+                "years": "2017",
+                "accident_rate": "0.2"
+                },
+                {
+                "local_name": "전체",
+                "years": "2017",
+                "accident_rate": "0.37"
+                },//2017
+
+                {"local_name": "제주",
+                "years": "2018", 
+                "accident_rate": "0.47"
+                },
+                {
+                "local_name": "충남",
+                "years": "2018",
+                "accident_rate": "0.6"
+                },
+                {
+                "local_name": "울산",
+                "years": "2018",
+                "accident_rate": "0.48"
+                },
+                {
+                "local_name": "충북",
+                "years": "2018",
+                "accident_rate": "0.54"
+                },
+                {
+                "local_name": "강원",
+                "years": "2018",
+                "accident_rate": "0.43"
+                },
+                {
+                "local_name": "전남",
+                "years": "2018",
+                "accident_rate": "0.47"
+                },
+                {
+                "local_name": "광주",
+                "years": "2018",
+                "accident_rate": "0.46"
+                },
+                {
+                "local_name": "경북",
+                "years": "2018",
+                "accident_rate": "0.44"
+                },
+                {
+                "local_name": "전북",
+                "years": "2018",
+                "accident_rate": "0.37"
+                },
+                {
+                "local_name": "대전",
+                "years": "2018",
+                "accident_rate": "0.39"
+                },
+                {
+                "local_name": "경기",
+                "years": "2018",
+                "accident_rate": "0.38"
+                },
+                {
+                "local_name": "세종",
+                "years": "2018",
+                "accident_rate": "0.31"
+                },
+                {
+                "local_name": "대구",
+                "years": "2018",
+                "accident_rate": "0.36"
+                },
+                {
+                "local_name": "경남",
+                "years": "2018",
+                "accident_rate": "0.28"
+                },
+                {
+                "local_name": "인천",
+                "years": "2018",
+                "accident_rate": "0.31"
+                },
+                {
+                "local_name": "서울",
+                "years": "2018",
+                "accident_rate": "0.28"
+                },
+                {
+                "local_name": "부산",
+                "years": "2018",
+                "accident_rate": "0.21"
+                },
+                {
+                "local_name": "전체",
+                "years": "2018",
+                "accident_rate": "0.37"
+                },//2018
+
+                {"local_name": "제주",
+                "years": "2019", 
+                "accident_rate": "0.44"
+                },
+                {
+                "local_name": "충남",
+                "years": "2019",
+                "accident_rate": "0.47"
+                },
+                {
+                "local_name": "울산",
+                "years": "2019",
+                "accident_rate": "0.32"
+                },
+                {
+                "local_name": "충북",
+                "years": "2019",
+                "accident_rate": "0.42"
+                },
+                {
+                "local_name": "강원",
+                "years": "2019",
+                "accident_rate": "0.32"
+                },
+                {
+                "local_name": "전남",
+                "years": "2019",
+                "accident_rate": "0.42"
+                },
+                {
+                "local_name": "광주",
+                "years": "2019",
+                "accident_rate": "0.38"
+                },
+                {
+                "local_name": "경북",
+                "years": "2019",
+                "accident_rate": "0.4"
+                },
+                {
+                "local_name": "전북",
+                "years": "2019",
+                "accident_rate": "0.32"
+                },
+                {
+                "local_name": "대전",
+                "years": "2019",
+                "accident_rate": "0.32"
+                },
+                {
+                "local_name": "경기",
+                "years": "2019",
+                "accident_rate": "0.31"
+                },
+                {
+                "local_name": "세종",
+                "years": "2019",
+                "accident_rate": "0.26"
+                },
+                {
+                "local_name": "대구",
+                "years": "2019",
+                "accident_rate": "0.29"
+                },
+                {
+                "local_name": "경남",
+                "years": "2019",
+                "accident_rate": "0.26"
+                },
+                {
+                "local_name": "인천",
+                "years": "2019",
+                "accident_rate": "0.26"
+                },
+                {
+                "local_name": "서울",
+                "years": "2019",
+                "accident_rate": "0.22"
+                },
+                {
+                "local_name": "부산",
+                "years": "2019",
+                "accident_rate": "0.19"
+                },
+                {
+                "local_name": "전체",
+                "years": "2019",
+                "accident_rate": "0.3"
+                },//2019
+            ];
+
+            // 지역별 배열
+            var jejuData = []; 
+            var chungnamData = [];
+            var ulsanData = [];
+            var chungbuckData = [];
+            var gangData = [];
+            var junnamData = [];
+            var gwangjuData = [];
+            var gyungbuckData = [];
+            var junbuckData = [];
+            var deajunData = [];
+            var kyungkyData = [];
+            var sejongData = [];
+            var deagueData = [];
+            var kyungnamData = [];
+            var incheonData = [];
+            var seoulData = [];
+            var busanData = [];
+
+            for(var i = 0; i < bothData.length; i++){
+                if(bothData[i]["local_name"] === "제주" || bothData[i]["local_name"] === "전체"){
+                    jejuData.push(bothData[i]);
+                }
+            }
+            for(var i = 0; i < bothData.length; i++){    
+                if(bothData[i]["local_name"] === "충남" || bothData[i]["local_name"] === "전체"){
+                    chungnamData.push(bothData[i]);
+                }
+            }
+            for(var i = 0; i < bothData.length; i++){ 
+                if(bothData[i]["local_name"] === "울산" || bothData[i]["local_name"] === "전체"){
+                    ulsanData.push(bothData[i]);
+                }
+            }
+            for(var i = 0; i < bothData.length; i++){ 
+                if(bothData[i]["local_name"] === "충북" || bothData[i]["local_name"] === "전체"){
+                    chungbuckData.push(bothData[i]);
+                }
+            }
+            for(var i = 0; i < bothData.length; i++){ 
+                 if(bothData[i]["local_name"] === "강원" || bothData[i]["local_name"] === "전체"){
+                    gangData.push(bothData[i]);
+                }
+            }
+            for(var i = 0; i < bothData.length; i++){ 
+                 if(bothData[i]["local_name"] === "전남" || bothData[i]["local_name"] === "전체"){
+                    junnamData.push(bothData[i]);
+                }
+            }
+            for(var i = 0; i < bothData.length; i++){ 
+                 if(bothData[i]["local_name"] === "광주" || bothData[i]["local_name"] === "전체"){
+                    gwangjuData.push(bothData[i]);
+                }
+            }
+            for(var i = 0; i < bothData.length; i++){ 
+                 if(bothData[i]["local_name"] === "경북" || bothData[i]["local_name"] === "전체"){
+                    gyungbuckData.push(bothData[i]);
+                }
+            }
+            for(var i = 0; i < bothData.length; i++){ 
+                 if(bothData[i]["local_name"] === "전북" || bothData[i]["local_name"] === "전체"){
+                    junbuckData.push(bothData[i]);
+                }
+            }
+            for(var i = 0; i < bothData.length; i++){ 
+                 if(bothData[i]["local_name"] === "대전" || bothData[i]["local_name"] === "전체"){
+                    deajunData.push(bothData[i]);
+                }
+            }
+            for(var i = 0; i < bothData.length; i++){ 
+                 if(bothData[i]["local_name"] === "경기" || bothData[i]["local_name"] === "전체"){
+                    kyungkyData.push(bothData[i]);
+                }
+            }
+            for(var i = 0; i < bothData.length; i++){ 
+                 if(bothData[i]["local_name"] === "세종" || bothData[i]["local_name"] === "전체"){
+                    sejongData.push(bothData[i]);
+                }
+            }
+            for(var i = 0; i < bothData.length; i++){ 
+                 if(bothData[i]["local_name"] === "대구" || bothData[i]["local_name"] === "전체"){
+                    deagueData.push(bothData[i]);
+                }
+            }
+            for(var i = 0; i < bothData.length; i++){ 
+                if(bothData[i]["local_name"] === "경남" || bothData[i]["local_name"] === "전체"){
+                    kyungnamData.push(bothData[i]);
+                }
+            }
+            for(var i = 0; i < bothData.length; i++){ 
+                 if(bothData[i]["local_name"] === "인천" || bothData[i]["local_name"] === "전체"){
+                    incheonData.push(bothData[i]);
+                }
+            }
+            for(var i = 0; i < bothData.length; i++){ 
+                if(bothData[i]["local_name"] === "서울" || bothData[i]["local_name"] === "전체"){
+                    seoulData.push(bothData[i]);
+                }
+            }
+            for(var i = 0; i < bothData.length; i++){ 
+                if(bothData[i]["local_name"] === "부산" || bothData[i]["local_name"] === "전체"){
+                    busanData.push(bothData[i]);
+                }
+            }
+            
+            
+            function change(value){
+                if(value === '서울'){
+                    update(seoulData);
+                }else if(value === '부산'){
+                    update(busanData);
+                }else if(value === '충남'){
+                    update(chungnamData);
+                }else if(value === '제주'){
+                    update(jejuData);
+                }else if(value === '충북'){
+                    update(chungbuckData);
+                }else if(value === '전남'){
+                    update(junnamData);
+                }else if(value === '경북'){
+                    update(gyungbuckData);
+                }else if(value === '광주'){
+                    update(gwangjuData);
+                }else if(value === '대전'){
+                    update(deajunData);
+                }else if(value === '울산'){
+                    update(ulsanData);
+                }else if(value === '강원'){
+                    update(gangData);
+                }else if(value === '전북'){
+                    update(junbuckData);
+                }else if(value === '경기'){
+                    update(kyungkyData);
+                }else if(value === '대구'){
+                    update(deagueData);
+                }else if(value === '인천'){
+                    update(incheonData);
+                }else if(value === '세종'){
+                    update(sejongData);
+                }else if(value === '경남'){
+                    update(kyungnamData);
+                }else{
+                    return ;
+                }
+            }
+            
+            function update(data){
+                //set domain for the x axis
+                xChart.domain(data.map(function(d){ return d.years; }) );
+                //set domain for y axis
+                yChart.domain( [0, d3.max(data, function(d){ return + d.accident_rate; })] );
+                
+                //get the width of each bar 
+                var barWidth = width / data.length;
+                
+                //select all bars on the graph, take them out, and exit the previous data set. 
+                //then you can add/enter the new data set
+                var bars = chart.selectAll(".bar")
+                                .remove()
+                                .exit()
+                                .data(data);		
+                //now actually give each rectangle the corresponding data
+
+                bars.enter()
+                    .append("rect")
+                    .attr("class", "bar")       
+                    .attr("x", function(d, i){ return i * barWidth + 10 }) // + 10
+                    .attr("y", function(d){ return yChart( d.accident_rate); })
+                    .attr("height", 0)                        
+                    .transition()
+                    .duration(600)
+                    .attr("height", function(d){ return height - yChart(d.accident_rate); })                        
+                    .attr("width", barWidth - 10) // -10
+                    .attr("fill", function(d){ 
+                        if (d.local_name === "전체"){ return "#02447D"}  
+                        else return "#0587FC";
+                    });
+                
+                //left axis
+                chart.select('.y')
+                        .call(yAxis)
+                        
+                //bottom axis
+                chart.select('.xAxis')
+                    .attr("transform", "translate(0," + height + ")")
+                    .call(xAxis)
+                    .selectAll("text")
+                        .style("text-anchor", "end")
+                        .attr("dx", "-.8em")
+                        .attr("dy", ".15em")
+                        .attr("transform", function(d){
+                            return "rotate(-65)";
+                        });
+
+            }//end update
+            
+            //set up chart
+            var margin = {top: 50, right: 30, bottom: 80, left: 50};
+            var width = 300;
+            var height = 400;
+            
+
+            var chart = d3.select(".chart")    
+                            .attr("width", width + margin.left + margin.right)
+                            .attr("height", height + margin.top + margin.bottom)
+                            .append("g")
+                            .attr("transform", "translate(" + margin.left + "," + margin.top + ")");
+            
+            var xChart = d3.scaleBand()
+                            .range([0, width]);
+                            
+            var yChart = d3.scaleLinear()
+                            .range([height, 0]);
+
+            var xAxis = d3.axisBottom(xChart);
+            var yAxis = d3.axisLeft(yChart);
+            
+            //set up axes
+            //left axis
+            chart.append("g")
+                    .attr("class", "y axis")
+                    .attr("class", "grid")
+                    .call(yAxis.tickSize( - height ));
+            //bottom axis
+            chart.append("g")
+                .attr("class", "xAxis")
+                .attr("transform", "translate(0," + height + ")")
+                .call(xAxis)
+                .selectAll("text")
+                    .style("text-anchor", "end")
+                    .attr("dx", "-.5em")
+                    .attr("dy", ".10em")
+                    .attr("transform", function(d){
+                        return "rotate(-65)";
+                    });
+            //add labels
+            chart
+                .append("text")
+                .attr("transform", "translate(-35," +  (height+margin.bottom)/2 + ") rotate(-90)")
+                .text("음주운전사고율");   
+            chart
+                .append("text")
+                .attr("transform", "translate(" + (width/2) + "," + (height + margin.bottom - 5) + ")")
+                .text("연도");
+
+            update(seoulData);
+
+        </script>    
+</body>
+</html>
+ 
